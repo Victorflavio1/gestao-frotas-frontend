@@ -6,14 +6,16 @@ import {
   Fuel,
   LogOut,
   LayoutDashboard,
+  Users,
 } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
+  // FUNÇÃO DE LOGOUT ATUALIZADA
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+    localStorage.removeItem('token'); // Remove o token armazenado
+    navigate('/login'); // Redireciona explicitamente para a página de Login
   };
 
   return (
@@ -65,11 +67,20 @@ export default function Dashboard() {
             <button style={navBtnStyle}>
               <CheckSquare size={18} /> Checklists
             </button>
-            <button style={navBtnStyle}>
+            <button
+              onClick={() => navigate('/abastecimentos')}
+              style={navBtnStyle}
+            >
               <Fuel size={18} /> Abastecimentos
+            </button>
+
+            <button onClick={() => navigate('/motoristas')} style={navBtnStyle}>
+              <Users size={18} /> Motoristas
             </button>
           </nav>
         </div>
+
+        {/* Botão de Logout ajustado */}
         <button
           onClick={handleLogout}
           style={{ ...navBtnStyle, backgroundColor: '#ef4444', color: '#fff' }}

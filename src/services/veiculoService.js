@@ -5,8 +5,8 @@ export const getVeiculos = async () => {
   return response.data;
 };
 
-export const createVeiculo = async (veiculoData) => {
-  const response = await api.post('/api/veiculos', veiculoData);
+export const createVeiculo = async (dados) => {
+  const response = await api.post('/api/veiculos', dados);
   return response.data;
 };
 

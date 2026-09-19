@@ -1,32 +1,56 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+
+import Login from './pages/Login'; // Garanta que o arquivo de Login existe
 import Dashboard from './pages/Dashboard';
 import Veiculos from './pages/Veiculos';
-import PrivateRoute from './components/PrivateRoute';
+import Abastecimentos from './pages/Abastecimentos';
+import Motoristas from './pages/Motoristas';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
+        {/* Rota Pública */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Rotas Protegidas */}
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
+            <ProtectedRoute>
               <Dashboard />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/veiculos"
           element={
-            <PrivateRoute>
+            <ProtectedRoute>
               <Veiculos />
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route
+          path="/abastecimentos"
+          element={
+            <ProtectedRoute>
+              <Abastecimentos />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/motoristas"
+          element={
+            <ProtectedRoute>
+              <Motoristas />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirecionamento da raiz */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

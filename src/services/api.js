@@ -1,17 +1,21 @@
 import axios from 'axios';
 
-// Cria uma instância do Axios configurada com o endereço do seu Back-End
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // Endereço onde o seu servidor Node.js está rodando
+  baseURL: 'http://localhost:3000', // Ajuste para a porta do seu servidor Node.js
 });
 
-// Interceptor para enviar automaticamente o token JWT em requisições autenticadas
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Interceptor para injetar o token de autenticação no cabeçalho das requisições
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token'); // Nome da chave onde salvou o token no Login
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
 
 export default api;

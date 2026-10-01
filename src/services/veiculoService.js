@@ -1,12 +1,18 @@
 import api from './api';
 
+// CORRETO (sem /api duplicado no início)
 export const getVeiculos = async () => {
   const response = await api.get('/api/veiculos');
   return response.data;
 };
 
-export const createVeiculo = async (dados) => {
-  const response = await api.post('/api/veiculos', dados);
+export const createVeiculo = async (data) => {
+  const response = await api.post('/api/veiculos', data);
+  return response.data;
+};
+
+export const updateVeiculo = async (id, data) => {
+  const response = await api.put(`/api/veiculos/${id}`, data);
   return response.data;
 };
 

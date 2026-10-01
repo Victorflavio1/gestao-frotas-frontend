@@ -1,0 +1,113 @@
+/* Container Principal */
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: sans-serif;
+  width: 100%;
+}
+
+/* Sidebar Fixo */
+.layout-sidebar {
+  width: 240px;
+  background-color: #1e293b;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Área de Conteúdo Das Páginas */
+/* Área de Conteúdo Única */
+.layout-content {
+  flex: 1;
+  padding: 30px 40px !important; /* Espaçamento interno padronizado */
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start !important; /* Força tudo a começar no topo */
+  align-items: stretch;
+}
+
+/* Título de TODAS as páginas */
+.page-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-top: 0 !important;      /* Zera a margem superior */
+  margin-bottom: 25px !important;  /* Margem inferior fixa */
+  color: #f8fafc;
+  text-align: left;
+  line-height: 1.2;
+}
+
+/* Botões da Sidebar */
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: none;
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+/* RESPONSIVIDADE PARA TELEMÓVEIS / DISPOSITIVOS MÓVEIS */
+@media (max-width: 768px) {
+  .layout-container {
+    flex-direction: column;
+  }
+
+  .layout-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 15px;
+  }
+
+  .sidebar-title {
+    margin-bottom: 15px;
+  }
+
+  .sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .layout-content {
+    padding: 20px 15px;
+  }
+
+  .page-title {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+}

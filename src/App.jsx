@@ -7,6 +7,7 @@ import Veiculos from './pages/Veiculos';
 import Abastecimentos from './pages/Abastecimentos';
 import Motoristas from './pages/Motoristas';
 import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
 
 export default function App() {
   return (
@@ -15,12 +16,14 @@ export default function App() {
         {/* Rota Pública */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rotas Protegidas */}
+        {/* Todas as páginas internas usam ProtectedRoute e Layout */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Layout>
+                <Dashboard />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -28,7 +31,9 @@ export default function App() {
           path="/veiculos"
           element={
             <ProtectedRoute>
-              <Veiculos />
+              <Layout>
+                <Veiculos />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -36,7 +41,9 @@ export default function App() {
           path="/abastecimentos"
           element={
             <ProtectedRoute>
-              <Abastecimentos />
+              <Layout>
+                <Abastecimentos />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -44,7 +51,9 @@ export default function App() {
           path="/motoristas"
           element={
             <ProtectedRoute>
-              <Motoristas />
+              <Layout>
+                <Motoristas />
+              </Layout>
             </ProtectedRoute>
           }
         />

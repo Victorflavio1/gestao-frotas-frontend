@@ -14,3 +14,9 @@ export const deleteMotorista = async (id) => {
   const response = await api.delete(`/api/motoristas/${id}`);
   return response.data;
 };
+
+export const updateMotorista = async (id, dados) => {
+  // ✅ Adicionada a barra "/" antes de "api"
+  const response = await api.put(`/api/motoristas/${id}`, dados);
+  return response.data;
+};

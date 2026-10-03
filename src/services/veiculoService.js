@@ -1,6 +1,6 @@
 import api from './api';
 
-// CORRETO (sem /api duplicado no início)
+
 export const getVeiculos = async () => {
   const response = await api.get('/api/veiculos');
   return response.data;

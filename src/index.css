@@ -281,3 +281,103 @@ body {
 .btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
+
+.btn-icon-danger {
+  background: transparent;
+  border: none;
+  color: #ef4444; /* Vermelho */
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-icon-danger:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* CRLV em Atraso */
+.crlv-vencido {
+  color: #ef4444 !important;
+  font-weight: bold;
+  background-color: rgba(239, 68, 68, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Badges de Status */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.badge-success {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.badge-warning {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: #facc15;
+}
+
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.badge-default {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+}
+
+.btn-icon-primary {
+  background: transparent;
+  border: none;
+  color: #60a5fa; /* Azul */
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-icon-primary:hover {
+  background-color: rgba(96, 165, 250, 0.15);
+  color: #93c5fd;
+}
+
+
+/* Container de cada campo + rótulo */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Rótulo fixo permanente */
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8; /* Cor cinza claro legível */
+}
+
+/* Indicador de campo obrigatório */
+.required-star {
+  color: #ef4444;
+  margin-left: 2px;
+}

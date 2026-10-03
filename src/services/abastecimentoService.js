@@ -14,3 +14,9 @@ export const deleteAbastecimento = async (id) => {
   const response = await api.delete(`/api/abastecimentos/${id}`);
   return response.data;
 };
+
+// ✅ CORRIGIDO: Adicionado /api/ no início da URL
+export const updateAbastecimento = async (id, dados) => {
+  const response = await api.put(`/api/abastecimentos/${id}`, dados);
+  return response.data;
+};

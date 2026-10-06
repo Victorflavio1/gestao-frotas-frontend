@@ -8,6 +8,7 @@ import Abastecimentos from './pages/Abastecimentos';
 import Motoristas from './pages/Motoristas';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import Checklists from './pages/Checklists';
 
 export default function App() {
   return (
@@ -15,7 +16,6 @@ export default function App() {
       <Routes>
         {/* Rota Pública */}
         <Route path="/login" element={<Login />} />
-
         {/* Todas as páginas internas usam ProtectedRoute e Layout */}
         <Route
           path="/dashboard"
@@ -57,8 +57,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/checklists"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Checklists />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Redirecionamento da raiz */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

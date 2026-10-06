@@ -40,6 +40,8 @@ export default function Layout({ children }) {
             >
               <LayoutDashboard size={18} /> Dashboard
             </button>
+
+            
             <button
               onClick={() => navigate('/veiculos')}
               className="nav-btn"
@@ -50,9 +52,19 @@ export default function Layout({ children }) {
             >
               <Truck size={18} /> Veículos
             </button>
-            <button className="nav-btn" style={{ backgroundColor: '#334155' }}>
+
+            <button
+              onClick={() => navigate('/checklists')}
+              className="nav-btn"
+              style={{
+                backgroundColor:
+                  location.pathname === '/checklists' ? '#2563eb' : '#334155',
+              }}
+            >
               <CheckSquare size={18} /> Checklists
             </button>
+
+
             <button
               onClick={() => navigate('/abastecimentos')}
               className="nav-btn"

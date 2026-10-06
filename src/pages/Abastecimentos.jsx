@@ -1,13 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   getAbastecimentos,
   createAbastecimento,
   updateAbastecimento,
   deleteAbastecimento,
 } from '../services/abastecimentoService';
+
 import { getVeiculos } from '../services/veiculoService';
 import { getMotoristas } from '../services/motoristaService';
-import { Trash2, Pencil, Plus, X } from 'lucide-react';
+import {
+  Trash2,
+  Pencil,
+  Plus,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Search,
+  Filter,
+} from 'lucide-react';
+
+import {
+  exportarAbastecimentosExcel,
+  exportarAbastecimentosPDF,
+} from '../utils/exportUtils';
 
 export default function Abastecimentos() {
   const [abastecimentos, setAbastecimentos] = useState([]);
@@ -16,6 +31,12 @@ export default function Abastecimentos() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Estados dos Filtros
+  const [buscaGeral, setBuscaGeral] = useState('');
+  const [filtroCombustivel, setFiltroCombustivel] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   // Estados do Formulário
   const [veiculoId, setVeiculoId] = useState('');
@@ -46,6 +67,33 @@ export default function Abastecimentos() {
   useEffect(() => {
     carregarDados();
   }, []);
+
+  // Lógica de Filtragem Dinâmica
+  const abastecimentosFiltrados = useMemo(() => {
+    return abastecimentos.filter((a) => {
+      const termo = buscaGeral.toLowerCase();
+      const placa = (a.placa || a.veiculo_placa || '').toLowerCase();
+      const motorista = (a.motorista_nome || a.motorista || '').toLowerCase();
+      const postoNome = (a.posto_nome || a.posto || '').toLowerCase();
+
+      const bateBusca =
+        !buscaGeral ||
+        placa.includes(termo) ||
+        motorista.includes(termo) ||
+        postoNome.includes(termo);
+
+      const bateCombustivel =
+        !filtroCombustivel || a.tipo_combustivel === filtroCombustivel;
+
+      const dataReg = a.data_abastecimento
+        ? a.data_abastecimento.split('T')[0]
+        : '';
+      const bateDataInicio = !dataInicio || dataReg >= dataInicio;
+      const bateDataFim = !dataFim || dataReg <= dataFim;
+
+      return bateBusca && bateCombustivel && bateDataInicio && bateDataFim;
+    });
+  }, [abastecimentos, buscaGeral, filtroCombustivel, dataInicio, dataFim]);
 
   const formatarData = (dataStr) => {
     if (!dataStr) return '-';
@@ -183,9 +231,44 @@ export default function Abastecimentos() {
     }
   };
 
+  // Handlers para Exportação
+  const handleExportExcel = () => {
+    if (abastecimentosFiltrados.length === 0) {
+      alert('Nenhum dado disponível para exportar.');
+      return;
+    }
+    exportarAbastecimentosExcel(abastecimentosFiltrados);
+  };
+
+  const handleExportPDF = () => {
+    if (abastecimentosFiltrados.length === 0) {
+      alert('Nenhum dado disponível para exportar.');
+      return;
+    }
+    exportarAbastecimentosPDF(abastecimentosFiltrados);
+  };
+
   return (
     <>
       <style>{`
+        .header-actions-container {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .filter-card {
+          background-color: #1e293b;
+          border-radius: 8px;
+          padding: 16px;
+          margin-bottom: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+        }
+
         .table-container-responsive {
           width: 100%;
         }
@@ -253,13 +336,121 @@ export default function Abastecimentos() {
         }
       `}</style>
 
-      <div className="page-header">
+      {/* CABEÇALHO COM BOTÕES DE EXPORTAÇÃO E NOVO REGISTRO */}
+      <div className="page-header" style={{ marginBottom: '16px' }}>
         <h1 className="page-title" style={{ margin: 0 }}>
           Gestão de Abastecimentos
         </h1>
-        <button className="btn-primary" onClick={handleOpenModalNovo}>
-          <Plus size={18} /> Novo Abastecimento
-        </button>
+        <div className="header-actions-container">
+          <button
+            className="btn-secondary"
+            onClick={handleExportExcel}
+            title="Exportar para Excel"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#166534',
+              color: '#fff',
+            }}
+          >
+            <FileSpreadsheet size={18} /> Excel
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={handleExportPDF} // Certifique-se de que chama essa função
+            title="Exportar para PDF"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#991b1b',
+              color: '#fff',
+            }}
+          >
+            <FileText size={18} /> PDF
+          </button>
+
+          <button className="btn-primary" onClick={handleOpenModalNovo}>
+            <Plus size={18} /> Novo Abastecimento
+          </button>
+        </div>
+      </div>
+
+      {/* BARRA DE FILTROS */}
+      <div className="filter-card">
+        <div className="form-group" style={{ margin: 0 }}>
+          <label
+            className="form-label"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.8rem',
+            }}
+          >
+            <Search size={14} /> Pesquisa
+          </label>
+          <input
+            className="input-control"
+            placeholder="Placa, motorista ou posto..."
+            value={buscaGeral}
+            onChange={(e) => setBuscaGeral(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group" style={{ margin: 0 }}>
+          <label
+            className="form-label"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.8rem',
+            }}
+          >
+            <Filter size={14} /> Combustível
+          </label>
+          <select
+            className="input-control"
+            value={filtroCombustivel}
+            onChange={(e) => setFiltroCombustivel(e.target.value)}
+          >
+            <option value="">Todos os Combustíveis</option>
+            <option value="FLEX">FLEX</option>
+            <option value="GASOLINA">GASOLINA</option>
+            <option value="DIESEL S10">DIESEL S10</option>
+            <option value="DIESEL S500">DIESEL S500</option>
+            <option value="ETANOL">ETANOL</option>
+            <option value="ELÉTRICO">ELÉTRICO</option>
+            <option value="HÍBRIDO">HÍBRIDO</option>
+            <option value="GNV">GNV</option>
+          </select>
+        </div>
+
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.8rem' }}>
+            Data Inicial
+          </label>
+          <input
+            type="date"
+            className="input-control"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.8rem' }}>
+            Data Final
+          </label>
+          <input
+            type="date"
+            className="input-control"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="table-container-responsive">
@@ -281,128 +472,149 @@ export default function Abastecimentos() {
               </tr>
             </thead>
             <tbody>
-              {abastecimentos.map((a) => (
-                <tr key={a.id}>
-                  <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
-                    {a.placa || a.veiculo_placa || a.veiculo_id}
-                  </td>
-                  <td style={{ fontWeight: '500' }}>
-                    {a.motorista_nome || a.motorista || '-'}
-                  </td>
-                  <td>{formatarData(a.data_abastecimento)}</td>
-                  <td>{a.posto_nome || a.posto || '-'}</td>
-                  <td>{a.tipo_combustivel || '-'}</td>
-                  <td>{a.litros} L</td>
-                  <td>R$ {Number(a.valor_unitario || 0).toFixed(2)}</td>
-                  <td>R$ {Number(a.valor_total || 0).toFixed(2)}</td>
-                  <td>
-                    {a.km_abastecimento
-                      ? `${Number(a.km_abastecimento).toLocaleString('pt-BR')} km`
-                      : '-'}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleEdit(a)}
-                        className="btn-icon-primary"
-                        title="Editar Abastecimento"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(a.id)}
-                        className="btn-icon-danger"
-                        title="Remover Abastecimento"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {abastecimentosFiltrados.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="10"
+                    style={{ textAlign: 'center', padding: '24px' }}
+                  >
+                    Nenhum abastecimento encontrado para os filtros
+                    selecionados.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                abastecimentosFiltrados.map((a) => (
+                  <tr key={a.id}>
+                    <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
+                      {a.placa || a.veiculo_placa || a.veiculo_id}
+                    </td>
+                    <td style={{ fontWeight: '500' }}>
+                      {a.motorista_nome || a.motorista || '-'}
+                    </td>
+                    <td>{formatarData(a.data_abastecimento)}</td>
+                    <td>{a.posto_nome || a.posto || '-'}</td>
+                    <td>{a.tipo_combustivel || '-'}</td>
+                    <td>{a.litros} L</td>
+                    <td>R$ {Number(a.valor_unitario || 0).toFixed(2)}</td>
+                    <td>R$ {Number(a.valor_total || 0).toFixed(2)}</td>
+                    <td>
+                      {a.km_abastecimento
+                        ? `${Number(a.km_abastecimento).toLocaleString('pt-BR')} km`
+                        : '-'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleEdit(a)}
+                          className="btn-icon-primary"
+                          title="Editar Abastecimento"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(a.id)}
+                          className="btn-icon-danger"
+                          title="Remover Abastecimento"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* CARDS APENAS NO MOBILE */}
         <div className="mobile-view">
-          {abastecimentos.map((a) => (
-            <div key={a.id} className="abast-card">
-              <div className="abast-card-header">
-                <span
-                  style={{
-                    fontWeight: 'bold',
-                    color: '#60a5fa',
-                    fontSize: '1.1rem',
-                  }}
-                >
-                  {a.placa || a.veiculo_placa || a.veiculo_id}
-                </span>
-                <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                  {formatarData(a.data_abastecimento)}
-                </span>
-              </div>
-
-              <div className="abast-card-grid">
-                <div>
-                  <span className="abast-field-label">Motorista</span>
-                  <strong>{a.motorista_nome || a.motorista || '-'}</strong>
-                </div>
-
-                <div>
-                  <span className="abast-field-label">Posto</span>
-                  <strong>{a.posto_nome || a.posto || '-'}</strong>
-                </div>
-
-                <div>
-                  <span className="abast-field-label">
-                    Combustível / Litros
-                  </span>
-                  <strong>
-                    {a.tipo_combustivel || '-'} ({a.litros} L)
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="abast-field-label">Valor Total</span>
-                  <strong style={{ color: '#4ade80' }}>
-                    R$ {Number(a.valor_total || 0).toFixed(2)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="abast-field-label">Preço/Litro</span>
-                  <span>R$ {Number(a.valor_unitario || 0).toFixed(2)}</span>
-                </div>
-
-                <div>
-                  <span className="abast-field-label">Quilometragem</span>
-                  <span>
-                    {a.km_abastecimento
-                      ? `${Number(a.km_abastecimento).toLocaleString('pt-BR')} km`
-                      : '-'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="abast-card-actions">
-                <button
-                  onClick={() => handleEdit(a)}
-                  className="btn-icon-primary"
-                  title="Editar"
-                >
-                  <Pencil size={18} />
-                </button>
-                <button
-                  onClick={() => handleDelete(a.id)}
-                  className="btn-icon-danger"
-                  title="Remover"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+          {abastecimentosFiltrados.length === 0 ? (
+            <div
+              className="abast-card"
+              style={{ textAlign: 'center', color: '#94a3b8' }}
+            >
+              Nenhum abastecimento encontrado.
             </div>
-          ))}
+          ) : (
+            abastecimentosFiltrados.map((a) => (
+              <div key={a.id} className="abast-card">
+                <div className="abast-card-header">
+                  <span
+                    style={{
+                      fontWeight: 'bold',
+                      color: '#60a5fa',
+                      fontSize: '1.1rem',
+                    }}
+                  >
+                    {a.placa || a.veiculo_placa || a.veiculo_id}
+                  </span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                    {formatarData(a.data_abastecimento)}
+                  </span>
+                </div>
+
+                <div className="abast-card-grid">
+                  <div>
+                    <span className="abast-field-label">Motorista</span>
+                    <strong>{a.motorista_nome || a.motorista || '-'}</strong>
+                  </div>
+
+                  <div>
+                    <span className="abast-field-label">Posto</span>
+                    <strong>{a.posto_nome || a.posto || '-'}</strong>
+                  </div>
+
+                  <div>
+                    <span className="abast-field-label">
+                      Combustível / Litros
+                    </span>
+                    <strong>
+                      {a.tipo_combustivel || '-'} ({a.litros} L)
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="abast-field-label">Valor Total</span>
+                    <strong style={{ color: '#4ade80' }}>
+                      R$ {Number(a.valor_total || 0).toFixed(2)}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="abast-field-label">Preço/Litro</span>
+                    <span>R$ {Number(a.valor_unitario || 0).toFixed(2)}</span>
+                  </div>
+
+                  <div>
+                    <span className="abast-field-label">Quilometragem</span>
+                    <span>
+                      {a.km_abastecimento
+                        ? `${Number(a.km_abastecimento).toLocaleString('pt-BR')} km`
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="abast-card-actions">
+                  <button
+                    onClick={() => handleEdit(a)}
+                    className="btn-icon-primary"
+                    title="Editar"
+                  >
+                    <Pencil size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    className="btn-icon-danger"
+                    title="Remover"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

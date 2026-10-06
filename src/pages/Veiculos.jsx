@@ -1,16 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   getVeiculos,
   createVeiculo,
   updateVeiculo,
   deleteVeiculo,
 } from '../services/veiculoService';
-import { Trash2, Pencil, Plus, X } from 'lucide-react';
+import {
+  Trash2,
+  Pencil,
+  Plus,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import {
+  exportarVeiculosExcel,
+  exportarVeiculosPDF,
+} from '../utils/exportUtils';
 
 export default function Veiculos() {
   const [veiculos, setVeiculos] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null); // ID do veículo em edição
+  const [editingId, setEditingId] = useState(null);
+
+  // ESTADOS DE FILTRO
+  const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('TODOS');
+
+  // ESTADOS DE PAGINAÇÃO (10 por página)
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 10;
 
   const anoAtual = new Date().getFullYear();
 
@@ -42,7 +64,39 @@ export default function Veiculos() {
     carregarVeiculos();
   }, []);
 
-  // Limpa o formulário e reseta o estado de edição
+  // Resetar página ao alterar filtros
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [busca, filtroStatus]);
+
+  // LÓGICA DE FILTRAGEM
+  const veiculosFiltrados = useMemo(() => {
+    return veiculos.filter((v) => {
+      const termo = busca.toLowerCase();
+      const combinaTexto =
+        (v.placa && v.placa.toLowerCase().includes(termo)) ||
+        (v.modelo && v.modelo.toLowerCase().includes(termo)) ||
+        (v.marca && v.marca.toLowerCase().includes(termo));
+
+      const st = (v.status || 'DISPONIVEL').toUpperCase();
+      let combinaStatus = true;
+
+      if (filtroStatus !== 'TODOS') {
+        combinaStatus = st.includes(filtroStatus);
+      }
+
+      return combinaTexto && combinaStatus;
+    });
+  }, [veiculos, busca, filtroStatus]);
+
+  // LÓGICA DE PAGINAÇÃO (Fatia os 10 itens da página atual)
+  const totalPaginas =
+    Math.ceil(veiculosFiltrados.length / itensPorPagina) || 1;
+  const veiculosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    return veiculosFiltrados.slice(inicio, inicio + itensPorPagina);
+  }, [veiculosFiltrados, paginaAtual]);
+
   const handleOpenModalNovo = () => {
     setEditingId(null);
     setPlaca('');
@@ -61,7 +115,6 @@ export default function Veiculos() {
     setShowModal(true);
   };
 
-  // Preenche o formulário com os dados do veículo para editar
   const handleEdit = (veiculo) => {
     setEditingId(veiculo.id);
     setPlaca(veiculo.placa || '');
@@ -73,7 +126,14 @@ export default function Veiculos() {
     setChassi(veiculo.chassi || '');
     setKmAtual(veiculo.km_atual ? String(veiculo.km_atual) : '');
     setAnoCrlv(veiculo.ano_crlv ? String(veiculo.ano_crlv) : '');
-    setStatus(veiculo.status || 'DISPONIVEL');
+
+    const st = (veiculo.status || 'DISPONIVEL').toString().toUpperCase();
+    if (st.includes('MANUTEN')) setStatus('MANUTENCAO');
+    else if (st.includes('INATIV') || st.includes('DESATIV'))
+      setStatus('INATIVO');
+    else if (st.includes('USO') || st.includes('OCUP')) setStatus('EM_USO');
+    else setStatus('DISPONIVEL');
+
     setNumeracao(veiculo.numeracao || '');
     setTipoCombustivel(veiculo.tipo_combustivel || 'FLEX');
     setTipoVeiculo(veiculo.tipo_veiculo || 'Carro');
@@ -82,7 +142,6 @@ export default function Veiculos() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const dadosVeiculo = {
       placa,
       modelo,
@@ -107,12 +166,10 @@ export default function Veiculos() {
         await createVeiculo(dadosVeiculo);
         alert('Veículo cadastrado com sucesso!');
       }
-
       setShowModal(false);
       carregarVeiculos();
     } catch (err) {
-      const msg = err.response?.data?.erro || 'Erro ao salvar veículo.';
-      alert(msg);
+      alert(err.response?.data?.erro || 'Erro ao salvar veículo.');
     }
   };
 
@@ -127,14 +184,22 @@ export default function Veiculos() {
     }
   };
 
-  const getStatusBadge = (statusValue) => {
-    const statusMap = {
-      DISPONIVEL: 'badge-success',
-      MANUTENCAO: 'badge-warning',
-      EM_USO: 'badge-info',
-      INATIVO: 'badge-danger',
-    };
-    return statusMap[statusValue] || 'badge-default';
+  const renderStatusBadge = (statusValue) => {
+    const val = statusValue
+      ? statusValue.toString().trim().toUpperCase()
+      : 'DISPONIVEL';
+
+    if (val.includes('USO') || val.includes('OCUP')) {
+      return <span className="status-badge status-em-uso">EM USO</span>;
+    }
+    if (val.includes('MANUTEN')) {
+      return <span className="status-badge status-manutencao">MANUTENÇÃO</span>;
+    }
+    if (val.includes('INATIV') || val.includes('DESATIV')) {
+      return <span className="status-badge status-inativo">INATIVO</span>;
+    }
+
+    return <span className="status-badge status-disponivel">DISPONÍVEL</span>;
   };
 
   return (
@@ -143,12 +208,75 @@ export default function Veiculos() {
         <h1 className="page-title" style={{ margin: 0 }}>
           Gestão de Veículos
         </h1>
-        <button className="btn-primary" onClick={handleOpenModalNovo}>
-          <Plus size={18} /> Novo Veículo
-        </button>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Exporta apenas os veículos filtrados */}
+          <button
+            className="btn-secondary btn-export-excel"
+            onClick={() => exportarVeiculosExcel(veiculosFiltrados)}
+            title="Exportar Filtrados para Excel"
+          >
+            <FileSpreadsheet size={18} /> Excel
+          </button>
+
+          <button
+            className="btn-secondary btn-export-pdf"
+            onClick={() => exportarVeiculosPDF(veiculosFiltrados)}
+            title="Exportar Filtrados para PDF"
+          >
+            <FileText size={18} /> PDF
+          </button>
+
+          <button className="btn-primary" onClick={handleOpenModalNovo}>
+            <Plus size={18} /> Novo Veículo
+          </button>
+        </div>
       </div>
 
-      {/* Tabela de Listagem */}
+      {/* BARRA DE FILTROS */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+          <Search
+            size={18}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#94a3b8',
+            }}
+          />
+          <input
+            className="input-control"
+            style={{ paddingLeft: '38px' }}
+            placeholder="Buscar por placa, modelo ou marca..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
+
+        <select
+          className="input-control"
+          style={{ width: 'auto', minWidth: '160px' }}
+          value={filtroStatus}
+          onChange={(e) => setFiltroStatus(e.target.value)}
+        >
+          <option value="TODOS">Todos os Status</option>
+          <option value="DISPONIVEL">Disponível</option>
+          <option value="USO">Em Uso</option>
+          <option value="MANUTEN">Manutenção</option>
+          <option value="INATIV">Inativo</option>
+        </select>
+      </div>
+
+      {/* TABELA DE LISTAGEM */}
       <div className="table-container">
         <table className="custom-table">
           <thead>
@@ -165,61 +293,115 @@ export default function Veiculos() {
             </tr>
           </thead>
           <tbody>
-            {veiculos.map((v) => {
-              const crlvAtrasado = v.ano_crlv && Number(v.ano_crlv) < anoAtual;
+            {veiculosPaginados.length > 0 ? (
+              veiculosPaginados.map((v) => {
+                const crlvAtrasado =
+                  v.ano_crlv && Number(v.ano_crlv) < anoAtual;
 
-              return (
-                <tr key={v.id}>
-                  <td
-                    data-label="Placa"
-                    style={{ fontWeight: 'bold', color: '#60a5fa' }}
-                  >
-                    {v.placa}
-                  </td>
-                  <td data-label="Modelo">{v.modelo}</td>
-                  <td data-label="Tipo">{v.tipo_veiculo || '-'}</td>
-
-                  <td data-label="Status">
-                    <span
-                      className={`status-badge ${getStatusBadge(v.status)}`}
+                return (
+                  <tr key={v.id}>
+                    <td
+                      data-label="Placa"
+                      style={{ fontWeight: 'bold', color: '#60a5fa' }}
                     >
-                      {v.status || 'DISPONIVEL'}
-                    </span>
-                  </td>
-
-                  <td data-label="Ano CRLV">
-                    <span className={crlvAtrasado ? 'crlv-vencido' : ''}>
-                      {v.ano_crlv || '-'}
-                    </span>
-                  </td>
-
-                  <td data-label="Marca">{v.marca || '-'}</td>
-                  <td data-label="Ano">{v.ano || '-'}</td>
-                  <td data-label="Cor">{v.cor || '-'}</td>
-                  <td data-label="Ações" style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleEdit(v)}
-                        className="btn-icon-primary"
-                        title="Editar Veículo"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(v.id)}
-                        className="btn-icon-danger"
-                        title="Excluir Veículo"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                      {v.placa}
+                    </td>
+                    <td data-label="Modelo">{v.modelo}</td>
+                    <td data-label="Tipo">{v.tipo_veiculo || '-'}</td>
+                    <td data-label="Status">{renderStatusBadge(v.status)}</td>
+                    <td data-label="Ano CRLV">
+                      <span className={crlvAtrasado ? 'crlv-vencido' : ''}>
+                        {v.ano_crlv || '-'}
+                      </span>
+                    </td>
+                    <td data-label="Marca">{v.marca || '-'}</td>
+                    <td data-label="Ano">{v.ano || '-'}</td>
+                    <td data-label="Cor">{v.cor || '-'}</td>
+                    <td data-label="Ações" style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleEdit(v)}
+                          className="btn-icon-primary"
+                          title="Editar Veículo"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(v.id)}
+                          className="btn-icon-danger"
+                          title="Excluir Veículo"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td
+                  colSpan="9"
+                  style={{ textAlign: 'center', padding: '24px' }}
+                >
+                  Nenhum veículo encontrado.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* CONTROLES DE PAGINAÇÃO (Aparecem se houver registros) */}
+      {veiculosFiltrados.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            justify: 'space-between',
+            alignItems: 'center',
+            marginTop: '16px',
+            color: '#94a3b8',
+            fontSize: '0.875rem',
+          }}
+        >
+          <span>
+            Exibindo {veiculosPaginados.length} de {veiculosFiltrados.length}{' '}
+            veículos
+          </span>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              className="btn-secondary"
+              disabled={paginaAtual === 1}
+              onClick={() => setPaginaAtual((p) => Math.max(p - 1, 1))}
+              style={{
+                padding: '6px 12px',
+                opacity: paginaAtual === 1 ? 0.5 : 1,
+              }}
+            >
+              <ChevronLeft size={16} /> Anterior
+            </button>
+
+            <span>
+              Página {paginaAtual} de {totalPaginas}
+            </span>
+
+            <button
+              className="btn-secondary"
+              disabled={paginaAtual === totalPaginas}
+              onClick={() =>
+                setPaginaAtual((p) => Math.min(p + 1, totalPaginas))
+              }
+              style={{
+                padding: '6px 12px',
+                opacity: paginaAtual === totalPaginas ? 0.5 : 1,
+              }}
+            >
+              Próxima <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE CADASTRO / EDIÇÃO */}
       {showModal && (

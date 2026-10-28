@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Truck, CheckSquare, Fuel, DollarSign } from 'lucide-react';
+import {
+  Wrench,
+  Truck,
+  CheckSquare,
+  Fuel,
+  DollarSign,
+  AlertTriangle,
+} from 'lucide-react';
 import { getVeiculos } from '../services/veiculoService';
 import { getAbastecimentos } from '../services/abastecimentoService';
+import { getManutencoes } from '../services/manutencaoService';
+
 import {
   BarChart,
   Bar,
@@ -20,17 +29,20 @@ const CORES_PIE = ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#a855f7'];
 export default function Dashboard() {
   const [veiculos, setVeiculos] = useState([]);
   const [abastecimentos, setAbastecimentos] = useState([]);
+  const [manutencoes, setManutencoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
     async function carregarDados() {
       try {
-        const [dataVeic, dataAbast] = await Promise.all([
+        const [dataVeic, dataAbast, dataManut] = await Promise.all([
           getVeiculos().catch(() => []),
           getAbastecimentos().catch(() => []),
+          getManutencoes().catch(() => []),
         ]);
         setVeiculos(dataVeic || []);
         setAbastecimentos(dataAbast || []);
+        setManutencoes(dataManut || []);
       } catch (err) {
         console.error('Erro ao carregar dados do dashboard:', err);
       } finally {
@@ -52,11 +64,15 @@ export default function Dashboard() {
       return st.includes('DISP') || st.includes('USO') || st.includes('OCUP');
     }).length;
 
-    // Abastecimentos e Gastos do Mês
+    // Abastecimentos e Gastos
     let abastecimentosHoje = 0;
-    let totalGastoMes = 0;
+    let totalGastoAbastMes = 0;
+    let valorTotalAbastecimentos = 0;
 
     abastecimentos.forEach((a) => {
+      const valor = Number(a.valor_total || a.valor || 0);
+      valorTotalAbastecimentos += valor;
+
       const dataRaw = a.data_abastecimento || a.data;
       if (!dataRaw) return;
 
@@ -67,7 +83,25 @@ export default function Dashboard() {
 
       const d = new Date(dataRaw);
       if (d.getMonth() === mesAtual && d.getFullYear() === anoAtual) {
-        totalGastoMes += Number(a.valor_total || a.valor || 0);
+        totalGastoAbastMes += valor;
+      }
+    });
+
+    // Gastos de Manutenção do Mês e Próximas Revisões
+    let totalGastoManutMes = 0;
+    const proximasRevisoes = [];
+
+    manutencoes.forEach((m) => {
+      const dataRaw = m.data_manutencao;
+      if (dataRaw) {
+        const d = new Date(dataRaw);
+        if (d.getMonth() === mesAtual && d.getFullYear() === anoAtual) {
+          totalGastoManutMes += Number(m.custo_total || 0);
+        }
+      }
+
+      if (m.status === 'AGENDADA' || (m.proxima_data && new Date(m.proxima_data) >= new Date())) {
+        proximasRevisoes.push(m);
       }
     });
 
@@ -76,11 +110,14 @@ export default function Dashboard() {
       totalVeiculos: veiculos.length,
       abastecimentosHoje,
       totalAbastecimentos: abastecimentos.length,
-      totalGastoMes,
+      valorTotalAbastecimentos,
+      totalGastoMes: totalGastoAbastMes + totalGastoManutMes,
+      totalGastoManutMes,
+      proximasRevisoes: proximasRevisoes.slice(0, 5),
     };
-  }, [veiculos, abastecimentos]);
+  }, [veiculos, abastecimentos, manutencoes]);
 
-  // GRÁFICO 1: Top 5 Veículos por Maior Gasto
+  // GRÁFICO 1: Top 5 Veículos por Maior Gasto (Abastecimento)
   const dadosGastosPorVeiculo = useMemo(() => {
     const mapa = {};
     abastecimentos.forEach((a) => {
@@ -137,17 +174,44 @@ export default function Dashboard() {
           icon={<Truck color="#3b82f6" />}
         />
         <Card
-          title="Abastecimentos Hoje"
-          value={kpis.abastecimentosHoje}
-          icon={<CheckSquare color="#22c55e" />}
+          title="Manutenções (Mês)"
+          value={`R$ ${kpis.totalGastoManutMes.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
+          icon={<Wrench color="#f59e0b" />}
         />
+        
+        {/* CARD DE ABASTECIMENTOS (QUANTIDADE E VALOR TOTAL) */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            padding: '20px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+              Total Abastecimentos
+            </p>
+            <h3 style={{ fontSize: '24px', margin: '5px 0 0 0' }}>
+              {kpis.totalAbastecimentos}
+            </h3>
+            <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 'bold' }}>
+              {`R$ ${kpis.valorTotalAbastecimentos.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
+            </span>
+          </div>
+          <Fuel color="#eab308" size={28} />
+        </div>
+
         <Card
-          title="Total Abastecimentos"
-          value={kpis.totalAbastecimentos}
-          icon={<Fuel color="#eab308" />}
-        />
-        <Card
-          title="Gasto no Mês"
+          title="Gasto Total (Mês)"
           value={`R$ ${kpis.totalGastoMes.toLocaleString('pt-BR', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -162,6 +226,7 @@ export default function Dashboard() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
           gap: '20px',
+          marginBottom: '24px',
         }}
       >
         {/* GRÁFICO 1: TOP 5 GASTOS */}
@@ -271,6 +336,64 @@ export default function Dashboard() {
               </p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* TABELA DE PRÓXIMAS MANUTENÇÕES / ALERTAS */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          padding: '20px',
+          borderRadius: '8px',
+        }}
+      >
+        <h3
+          style={{
+            fontSize: '16px',
+            marginTop: 0,
+            marginBottom: '16px',
+            color: 'var(--text-main, #fff)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <AlertTriangle size={18} color="#f59e0b" />
+          Próximas Manutenções Programadas
+        </h3>
+        <div className="table-container">
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>Veículo</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Próxima Data</th>
+                <th>Próxima KM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kpis.proximasRevisoes.length > 0 ? (
+                kpis.proximasRevisoes.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
+                      {item.veiculo_placa} <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>({item.veiculo_modelo})</span>
+                    </td>
+                    <td>{item.tipo_manutencao}</td>
+                    <td>{item.status}</td>
+                    <td>{item.proxima_data ? new Date(item.proxima_data).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td>{item.proxima_km ? `${Number(item.proxima_km).toLocaleString('pt-BR')} km` : '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                    Nenhuma manutenção agendada para os próximos dias.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

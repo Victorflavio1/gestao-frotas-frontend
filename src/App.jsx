@@ -9,6 +9,8 @@ import Motoristas from './pages/Motoristas';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Checklists from './pages/Checklists';
+import Manutencoes from './pages/Manutencoes';
+import Multas from './pages/Multas';
 
 export default function App() {
   return (
@@ -63,6 +65,28 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Checklists />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/manutencoes"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Manutencoes />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/multas"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Multas />
               </Layout>
             </ProtectedRoute>
           }

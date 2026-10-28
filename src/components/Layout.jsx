@@ -7,6 +7,8 @@ import {
   LogOut,
   LayoutDashboard,
   Users,
+  AlertOctagon,
+  Wrench,
 } from 'lucide-react';
 import './Layout.css'; // Importação das regras de CSS e Responsividade
 
@@ -41,7 +43,6 @@ export default function Layout({ children }) {
               <LayoutDashboard size={18} /> Dashboard
             </button>
 
-            
             <button
               onClick={() => navigate('/veiculos')}
               className="nav-btn"
@@ -64,7 +65,6 @@ export default function Layout({ children }) {
               <CheckSquare size={18} /> Checklists
             </button>
 
-
             <button
               onClick={() => navigate('/abastecimentos')}
               className="nav-btn"
@@ -77,6 +77,7 @@ export default function Layout({ children }) {
             >
               <Fuel size={18} /> Abastecimentos
             </button>
+
             <button
               onClick={() => navigate('/motoristas')}
               className="nav-btn"
@@ -86,6 +87,28 @@ export default function Layout({ children }) {
               }}
             >
               <Users size={18} /> Motoristas
+            </button>
+
+            <button
+              onClick={() => navigate('/manutencoes')}
+              className="nav-btn"
+              style={{
+                backgroundColor:
+                  location.pathname === '/manutencoes' ? '#2563eb' : '#334155',
+              }}
+            >
+              <Wrench size={18} /> Manutenções
+            </button>
+
+            <button
+              onClick={() => navigate('/multas')}
+              className="nav-btn"
+              style={{
+                backgroundColor:
+                  location.pathname === '/multas' ? '#2563eb' : '#334155',
+              }}
+            >
+              <AlertOctagon size={18} /> Multas
             </button>
           </nav>
         </div>

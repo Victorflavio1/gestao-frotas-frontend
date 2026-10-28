@@ -223,9 +223,7 @@ export const exportarAbastecimentosExcel = (dados) => {
       return;
     }
 
-    // 1. Mapeamento completo dos campos para o Excel
     const dadosFormatados = dados.map((a) => {
-      // Tratamento da Data
       const rawData = a.data_abastecimento || a.data;
       let dataFormatada = '-';
       if (rawData) {
@@ -236,7 +234,6 @@ export const exportarAbastecimentosExcel = (dados) => {
         }
       }
 
-      // Tratamento do KM
       const rawKm = a.km_abastecimento ?? a.km_atual ?? a.km;
       const kmValor =
         rawKm !== null && rawKm !== undefined && rawKm !== ''
@@ -256,27 +253,23 @@ export const exportarAbastecimentosExcel = (dados) => {
       };
     });
 
-    // 2. Converte os dados em uma planilha (worksheet)
     const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
 
-    // 3. Define larguras para as colunas não ficarem espremidas
     worksheet['!cols'] = [
-      { wch: 12 }, // Data
-      { wch: 16 }, // Placa / Veículo
-      { wch: 25 }, // Motorista
-      { wch: 25 }, // Posto / Local
-      { wch: 15 }, // Combustível
-      { wch: 12 }, // Litros
-      { wch: 18 }, // Valor Unitário
-      { wch: 16 }, // Valor Total
-      { wch: 18 }, // Quilometragem
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 18 },
     ];
 
-    // 4. Cria a pasta de trabalho (workbook)
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Abastecimentos');
 
-    // 5. Gera o download da planilha
     XLSX.writeFile(
       workbook,
       `Relatorio_Abastecimentos_${new Date().getTime()}.xlsx`,
@@ -289,14 +282,12 @@ export const exportarAbastecimentosExcel = (dados) => {
 
 export const exportarAbastecimentosPDF = (dados) => {
   try {
-    // 1. Instancia o PDF no modo horizontal (landscape)
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
       format: 'a4',
     });
 
-    // 2. Título e subcabeçalho
     doc.setFontSize(16);
     doc.text('Relatório Completo de Abastecimentos', 14, 15);
 
@@ -305,7 +296,6 @@ export const exportarAbastecimentosPDF = (dados) => {
     const dataEmissao = new Date().toLocaleString('pt-BR');
     doc.text(`Gerado em: ${dataEmissao}`, 14, 21);
 
-    // 3. Definição das Colunas
     const colunas = [
       { header: 'Data', dataKey: 'data' },
       { header: 'Veículo', dataKey: 'veiculo' },
@@ -318,9 +308,7 @@ export const exportarAbastecimentosPDF = (dados) => {
       { header: 'KM Atual', dataKey: 'km' },
     ];
 
-    // 4. Mapeamento dos Dados
     const linhas = (dados || []).map((a) => {
-      // Data
       const rawData = a.data_abastecimento || a.data;
       let dataFormatada = '-';
       if (rawData) {
@@ -331,14 +319,12 @@ export const exportarAbastecimentosPDF = (dados) => {
         }
       }
 
-      // KM
       const rawKm = a.km_abastecimento ?? a.km_atual ?? a.km;
       const kmFormatado =
         rawKm !== null && rawKm !== undefined && rawKm !== ''
           ? `${Number(rawKm).toLocaleString('pt-BR')} km`
           : '-';
 
-      // Valores
       const litrosVal = Number(a.litros || 0).toFixed(2);
       const unitarioVal = Number(
         a.valor_unitario || a.preco_litro || 0,
@@ -358,7 +344,6 @@ export const exportarAbastecimentosPDF = (dados) => {
       };
     });
 
-    // 5. Chamada direta do autoTable enviando o doc como primeiro argumento
     autoTable(doc, {
       columns: colunas,
       body: linhas,
@@ -387,7 +372,6 @@ export const exportarAbastecimentosPDF = (dados) => {
       margin: { top: 25, left: 10, right: 10, bottom: 10 },
     });
 
-    // 6. Download do PDF
     doc.save(`Relatorio_Abastecimentos_${new Date().getTime()}.pdf`);
   } catch (err) {
     console.error('Erro detalhado na geração do PDF:', err);
@@ -395,57 +379,9 @@ export const exportarAbastecimentosPDF = (dados) => {
   }
 };
 
- 
-// ----------------------------------------------------
-// EXPORTAÇÃO EXCEL
-// ----------------------------------------------------
-
-// Helper para formatar todos os itens inspecionados do checklist em texto contínuo
-const formatarItensInspecionados = (c) => {
-  const itens = [];
-
-  // Documentação e Emergência
-  if (c.documento_crlv) itens.push(`CRLV: ${c.documento_crlv}`);
-  if (c.triangulo && c.triangulo !== 'N_A')
-    itens.push(`Triângulo: ${c.triangulo}`);
-  if (c.chave_roda && c.chave_roda !== 'N_A')
-    itens.push(`Chave Roda: ${c.chave_roda}`);
-  if (c.macaco && c.macaco !== 'N_A') itens.push(`Macaco: ${c.macaco}`);
-  if (c.extintor && c.extintor !== 'N_A') itens.push(`Extintor: ${c.extintor}`);
-  if (c.tacografos_faixas && c.tacografos_faixas !== 'N_A')
-    itens.push(`Tacógrafo/Faixas: ${c.tacografos_faixas}`);
-  if (c.epis_capacete && c.epis_capacete !== 'N_A')
-    itens.push(`EPIs/Capacete: ${c.epis_capacete}`);
-
-  // Níveis e Mecânica
-  if (c.nivel_oleo) itens.push(`Óleo Motor: ${c.nivel_oleo}`);
-  if (c.liquido_arrefecimento && c.liquido_arrefecimento !== 'N_A')
-    itens.push(`Arrefecimento: ${c.liquido_arrefecimento}`);
-  if (c.sistema_freio) itens.push(`Freios: ${c.sistema_freio}`);
-  if (c.suspensao_transmissao)
-    itens.push(`Suspensão: ${c.suspensao_transmissao}`);
-  if (c.hidraulico_munck && c.hidraulico_munck !== 'N_A')
-    itens.push(`Hidráulico/Munck: ${c.hidraulico_munck}`);
-
-  // Pneus e Rodagem
-  if (c.pneu_dd) itens.push(`Pneu DD: ${c.pneu_dd}`);
-  if (c.pneu_de && c.pneu_de !== 'N_A') itens.push(`Pneu DE: ${c.pneu_de}`);
-  if (c.pneu_td) itens.push(`Pneu TD: ${c.pneu_td}`);
-  if (c.pneu_te && c.pneu_te !== 'N_A') itens.push(`Pneu TE: ${c.pneu_te}`);
-  if (c.estepe && c.estepe !== 'N_A') itens.push(`Estepe: ${c.estepe}`);
-
-  // Iluminação e Visibilidade
-  if (c.eletrica_farois) itens.push(`Faróis/Elétrica: ${c.eletrica_farois}`);
-  if (c.parabrisa_limpadores && c.parabrisa_limpadores !== 'N_A')
-    itens.push(`Para-brisa: ${c.parabrisa_limpadores}`);
-
-  return itens.join(' | ');
-};
-
+// --- CHECKLISTS ---
 const fmt = (v) => (v !== undefined && v !== null && v !== '' ? v : '-');
-// ----------------------------------------------------
-// EXPORTAÇÃO EXCEL
-// ----------------------------------------------------
+
 export const exportarChecklistsExcel = (listaChecklists) => {
   try {
     if (!listaChecklists || listaChecklists.length === 0) {
@@ -456,41 +392,34 @@ export const exportarChecklistsExcel = (listaChecklists) => {
     const dadosMapeados = listaChecklists.map((c) => ({
       ID: c.id,
       Tipo: fmt(c.tipo_checklist) || 'ABERTURA',
-      Data: c.data_checklist ? new Date(c.data_checklist).toLocaleString('pt-BR') : '-',
+      Data: c.data_checklist
+        ? new Date(c.data_checklist).toLocaleString('pt-BR')
+        : '-',
       Veículo: fmt(c.placa || c.veiculo_placa || c.veiculo_id),
       Motorista: fmt(c.motorista_nome || c.motorista),
       'KM Atual': c.km_atual || 0,
       Combustível: fmt(c.nivel_combustivel),
       'Cartão Combustível': fmt(c.cartao_combustivel),
       Status: c.status_geral === 'COM_PENDENCIA' ? 'COM PENDÊNCIA' : 'APROVADO',
-      
-      // Documentação e Emergência
       'Doc CRLV': fmt(c.documento_crlv),
-      'Triângulo': fmt(c.triangulo),
+      Triângulo: fmt(c.triangulo),
       'Chave Roda': fmt(c.chave_roda),
-      'Macaco': fmt(c.macaco),
-      'Extintor': fmt(c.extintor),
+      Macaco: fmt(c.macaco),
+      Extintor: fmt(c.extintor),
       'Tacógrafo/Faixas': fmt(c.tacografos_faixas),
       'EPIs/Capacete': fmt(c.epis_capacete),
-
-      // Níveis e Mecânica
       'Nível Óleo': fmt(c.nivel_oleo),
-      'Arrefecimento': fmt(c.liquido_arrefecimento),
-      'Freios': fmt(c.sistema_freio),
+      Arrefecimento: fmt(c.liquido_arrefecimento),
+      Freios: fmt(c.sistema_freio),
       'Suspensão/Transm.': fmt(c.suspensao_transmissao),
       'Hidráulico/Munck': fmt(c.hidraulico_munck),
-
-      // Pneus e Rodagem
       'Pneu DD': fmt(c.pneu_dd),
       'Pneu DE': fmt(c.pneu_de),
       'Pneu TD': fmt(c.pneu_td),
       'Pneu TE': fmt(c.pneu_te),
-      'Estepe': fmt(c.estepe),
-
-      // Iluminação e Visibilidade
+      Estepe: fmt(c.estepe),
       'Faróis/Elétrica': fmt(c.eletrica_farois),
       'Para-brisa/Limpadores': fmt(c.parabrisa_limpadores),
-
       Observações: fmt(c.observacoes),
     }));
 
@@ -500,7 +429,7 @@ export const exportarChecklistsExcel = (listaChecklists) => {
 
     XLSX.writeFile(
       workbook,
-      `Relatorio_Checklists_Completo_${new Date().toISOString().slice(0, 10)}.xlsx`
+      `Relatorio_Checklists_Completo_${new Date().toISOString().slice(0, 10)}.xlsx`,
     );
   } catch (err) {
     console.error('Erro ao exportar Excel:', err);
@@ -508,9 +437,6 @@ export const exportarChecklistsExcel = (listaChecklists) => {
   }
 };
 
-// ----------------------------------------------------
-// EXPORTAÇÃO PDF (Colunas separadas para cada item)
-// ----------------------------------------------------
 export const exportarChecklistsPDF = (listaChecklists) => {
   try {
     if (!listaChecklists || listaChecklists.length === 0) {
@@ -518,10 +444,18 @@ export const exportarChecklistsPDF = (listaChecklists) => {
       return;
     }
 
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' }); // Formato A3 Paisagem para acomodar todas as colunas
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a3',
+    });
 
     doc.setFontSize(14);
-    doc.text('Relatório Completo de Checklists de Inspeção (Todas as Colunas)', 14, 15);
+    doc.text(
+      'Relatório Completo de Checklists de Inspeção (Todas as Colunas)',
+      14,
+      15,
+    );
 
     doc.setFontSize(9);
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 21);
@@ -561,7 +495,9 @@ export const exportarChecklistsPDF = (listaChecklists) => {
     const linhas = listaChecklists.map((c) => [
       c.id,
       fmt(c.tipo_checklist),
-      c.data_checklist ? new Date(c.data_checklist).toLocaleDateString('pt-BR') : '-',
+      c.data_checklist
+        ? new Date(c.data_checklist).toLocaleDateString('pt-BR')
+        : '-',
       fmt(c.placa || c.veiculo_placa || c.veiculo_id),
       fmt(c.motorista_nome || c.motorista),
       c.km_atual ? Number(c.km_atual).toLocaleString('pt-BR') : '-',
@@ -599,9 +535,358 @@ export const exportarChecklistsPDF = (listaChecklists) => {
       margin: { left: 8, right: 8 },
     });
 
-    doc.save(`Relatorio_Checklists_Completo_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(
+      `Relatorio_Checklists_Completo_${new Date().toISOString().slice(0, 10)}.pdf`,
+    );
   } catch (err) {
     console.error('Erro ao exportar PDF:', err);
     alert('Erro ao gerar arquivo PDF.');
+  }
+};
+
+// --- MANUTENÇÕES ---
+export const exportarManutencoesExcel = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhuma manutenção disponível para exportar.');
+      return;
+    }
+
+    const dadosFormatados = dados.map((m) => {
+      const rawData = m.data_manutencao || m.data;
+      let dataFormatada = '-';
+      if (rawData) {
+        const apenasData = rawData.toString().split('T')[0];
+        const partes = apenasData.split('-');
+        if (partes.length === 3) {
+          dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      let proximaDataFormatada = '-';
+      if (m.proxima_data) {
+        const partes = m.proxima_data.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          proximaDataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      return {
+        Data: dataFormatada,
+        'Placa / Veículo': m.veiculo_placa || m.placa || m.veiculo_id || '-',
+        Modelo: m.veiculo_modelo || '-',
+        'Tipo Manutenção': m.tipo_manutencao || 'PREVENTIVA',
+        Oficina: m.oficina || '-',
+        'Custo Peças (R$)': Number(m.custo_pecas || 0),
+        'Custo Mão de Obra (R$)': Number(m.custo_mao_obra || 0),
+        'Custo Total (R$)': Number(m.custo_total || 0),
+        'KM Manutenção': m.km_manutencao ? Number(m.km_manutencao) : '-',
+        'Próxima KM': m.proxima_km ? Number(m.proxima_km) : '-',
+        'Próxima Data': proximaDataFormatada,
+        Status: m.status || 'CONCLUIDA',
+        Descrição: m.descricao || '-',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
+
+    worksheet['!cols'] = [
+      { wch: 12 }, // Data
+      { wch: 16 }, // Veículo
+      { wch: 18 }, // Modelo
+      { wch: 18 }, // Tipo
+      { wch: 22 }, // Oficina
+      { wch: 16 }, // Peças
+      { wch: 20 }, // Mão de Obra
+      { wch: 16 }, // Total
+      { wch: 16 }, // KM Manutenção
+      { wch: 14 }, // Próxima KM
+      { wch: 14 }, // Próxima Data
+      { wch: 14 }, // Status
+      { wch: 30 }, // Descrição
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Manutencoes');
+
+    XLSX.writeFile(
+      workbook,
+      `Relatorio_Manutencoes_${new Date().getTime()}.xlsx`,
+    );
+  } catch (err) {
+    console.error('Erro ao exportar Excel de manutenções:', err);
+    alert(`Erro ao exportar Excel: ${err.message}`);
+  }
+};
+
+export const exportarManutencoesPDF = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhuma manutenção disponível para exportar.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    doc.setFontSize(16);
+    doc.text('Relatório Completo de Manutenções', 14, 15);
+
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+    doc.text(`Gerado em: ${dataEmissao}`, 14, 21);
+
+    const colunas = [
+      { header: 'Data', dataKey: 'data' },
+      { header: 'Veículo', dataKey: 'veiculo' },
+      { header: 'Tipo', dataKey: 'tipo' },
+      { header: 'Oficina', dataKey: 'oficina' },
+      { header: 'Peças (R$)', dataKey: 'pecas' },
+      { header: 'M. Obra (R$)', dataKey: 'maoObra' },
+      { header: 'Total (R$)', dataKey: 'total' },
+      { header: 'KM Actual', dataKey: 'km' },
+      { header: 'Próxima Rev.', dataKey: 'proxima' },
+      { header: 'Status', dataKey: 'status' },
+    ];
+
+    const linhas = dados.map((m) => {
+      const rawData = m.data_manutencao || m.data;
+      let dataFormatada = '-';
+      if (rawData) {
+        const partes = rawData.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      let proxima = '-';
+      if (m.proxima_data) {
+        const partes = m.proxima_data.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          proxima = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      } else if (m.proxima_km) {
+        proxima = `${Number(m.proxima_km).toLocaleString('pt-BR')} km`;
+      }
+
+      return {
+        data: dataFormatada,
+        veiculo: m.veiculo_placa || m.placa || '-',
+        tipo: m.tipo_manutencao || 'PREVENTIVA',
+        oficina: m.oficina || '-',
+        pecas: `R$ ${Number(m.custo_pecas || 0).toFixed(2)}`,
+        maoObra: `R$ ${Number(m.custo_mao_obra || 0).toFixed(2)}`,
+        total: `R$ ${Number(m.custo_total || 0).toFixed(2)}`,
+        km: m.km_manutencao
+          ? `${Number(m.km_manutencao).toLocaleString('pt-BR')} km`
+          : '-',
+        proxima,
+        status: m.status || 'CONCLUIDA',
+      };
+    });
+
+    autoTable(doc, {
+      columns: colunas,
+      body: linhas,
+      startY: 26,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 3,
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      columnStyles: {
+        data: { halign: 'center' },
+        veiculo: { fontStyle: 'bold', halign: 'center' },
+        tipo: { halign: 'center' },
+        pecas: { halign: 'right' },
+        maoObra: { halign: 'right' },
+        total: { halign: 'right', fontStyle: 'bold' },
+        km: { halign: 'right' },
+        proxima: { halign: 'center' },
+        status: { halign: 'center' },
+      },
+      margin: { top: 25, left: 10, right: 10, bottom: 10 },
+    });
+
+    doc.save(`Relatorio_Manutencoes_${new Date().getTime()}.pdf`);
+  } catch (err) {
+    console.error('Erro ao gerar PDF de manutenções:', err);
+    alert(`Erro ao gerar PDF: ${err.message}`);
+  }
+};
+
+// --- MULTAS ---
+export const exportarMultasExcel = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhuma multa disponível para exportar.');
+      return;
+    }
+
+    const dadosFormatados = dados.map((m) => {
+      let dataInfracao = '-';
+      if (m.data_infracao) {
+        const partes = m.data_infracao.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          dataInfracao = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      let vencimento = '-';
+      if (m.vencimento) {
+        const partes = m.vencimento.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          vencimento = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      return {
+        Data: dataInfracao,
+        Hora: m.hora_infracao || '-',
+        'Auto de Infração': m.auto_infracao || '-',
+        'Placa / Veículo': m.veiculo_placa || m.placa || '-',
+        Modelo: m.veiculo_modelo || '-',
+        Motorista: m.motorista_nome || 'Não informado',
+        Localização: m.localizacao || '-',
+        'Valor (R$)': Number(m.valor || 0),
+        Pontos: Number(m.pontos || 0),
+        Vencimento: vencimento,
+        Status: m.status || 'PENDENTE',
+        Descrição: m.descricao_infracao || '-',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
+
+    worksheet['!cols'] = [
+      { wch: 12 }, // Data
+      { wch: 10 }, // Hora
+      { wch: 18 }, // Auto
+      { wch: 16 }, // Veículo
+      { wch: 18 }, // Modelo
+      { wch: 25 }, // Motorista
+      { wch: 25 }, // Localização
+      { wch: 14 }, // Valor
+      { wch: 10 }, // Pontos
+      { wch: 14 }, // Vencimento
+      { wch: 14 }, // Status
+      { wch: 30 }, // Descrição
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Multas');
+
+    XLSX.writeFile(workbook, `Relatorio_Multas_${new Date().getTime()}.xlsx`);
+  } catch (err) {
+    console.error('Erro ao exportar Excel de multas:', err);
+    alert(`Erro ao exportar Excel: ${err.message}`);
+  }
+};
+export const exportarMultasPDF = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhuma multa disponível para exportar.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    doc.setFontSize(16);
+    doc.text('Relatório Completo de Multas e Infrações', 14, 15);
+
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+    doc.text(`Gerado em: ${dataEmissao}`, 14, 21);
+
+    const colunas = [
+      { header: 'Data', dataKey: 'data' },
+      { header: 'Auto', dataKey: 'auto' },
+      { header: 'Veículo', dataKey: 'veiculo' },
+      { header: 'Motorista', dataKey: 'motorista' },
+      { header: 'Localização', dataKey: 'local' },
+      { header: 'Valor (R$)', dataKey: 'valor' },
+      { header: 'Pontos', dataKey: 'pontos' },
+      { header: 'Vencimento', dataKey: 'vencimento' },
+      { header: 'Status', dataKey: 'status' },
+    ];
+
+    const linhas = dados.map((m) => {
+      let dataInfracao = '-';
+      if (m.data_infracao) {
+        const partes = m.data_infracao.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          dataInfracao = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      let vencimento = '-';
+      if (m.vencimento) {
+        const partes = m.vencimento.toString().split('T')[0].split('-');
+        if (partes.length === 3) {
+          vencimento = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+      }
+
+      return {
+        data: dataInfracao,
+        auto: m.auto_infracao || '-',
+        veiculo: m.veiculo_placa || m.placa || '-',
+        motorista: m.motorista_nome || 'Não informado',
+        local: m.localizacao || '-',
+        valor: `R$ ${Number(m.valor || 0).toFixed(2)}`,
+        pontos: `${m.pontos || 0} pts`,
+        vencimento,
+        status: m.status || 'PENDENTE',
+      };
+    });
+
+    autoTable(doc, {
+      columns: colunas,
+      body: linhas,
+      startY: 26,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 3,
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      columnStyles: {
+        data: { halign: 'center' },
+        auto: { fontStyle: 'bold', halign: 'center' },
+        veiculo: { fontStyle: 'bold', halign: 'center' },
+        valor: { halign: 'right', fontStyle: 'bold' },
+        pontos: { halign: 'center' },
+        vencimento: { halign: 'center' },
+        status: { halign: 'center' },
+      },
+      margin: { top: 25, left: 10, right: 10, bottom: 10 },
+    });
+
+    doc.save(`Relatorio_Multas_${new Date().getTime()}.pdf`);
+  } catch (err) {
+    console.error('Erro ao gerar PDF de multas:', err);
+    alert(`Erro ao gerar PDF: ${err.message}`);
   }
 };

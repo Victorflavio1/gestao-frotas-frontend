@@ -9,6 +9,8 @@ import {
   Users,
   AlertOctagon,
   Wrench,
+  Disc,
+  FileText,
 } from 'lucide-react';
 import './Layout.css'; // Importação das regras de CSS e Responsividade
 
@@ -101,6 +103,17 @@ export default function Layout({ children }) {
             </button>
 
             <button
+              onClick={() => navigate('/pneus')}
+              className="nav-btn"
+              style={{
+                backgroundColor:
+                  location.pathname === '/pneus' ? '#2563eb' : '#334155',
+              }}
+            >
+              <Disc size={18} /> Pneus
+            </button>
+
+            <button
               onClick={() => navigate('/multas')}
               className="nav-btn"
               style={{
@@ -109,6 +122,17 @@ export default function Layout({ children }) {
               }}
             >
               <AlertOctagon size={18} /> Multas
+            </button>
+
+            <button
+              onClick={() => navigate('/documentos')}
+              className="nav-btn"
+              style={{
+                backgroundColor:
+                  location.pathname === '/documentos' ? '#2563eb' : '#334155',
+              }}
+            >
+              <FileText size={18} /> Documentos
             </button>
           </nav>
         </div>

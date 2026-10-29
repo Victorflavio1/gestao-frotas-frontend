@@ -890,3 +890,126 @@ export const exportarMultasPDF = (dados) => {
     alert(`Erro ao gerar PDF: ${err.message}`);
   }
 };
+
+// --- PNEUS ---
+export const exportarPneusExcel = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhum pneu disponível para exportar.');
+      return;
+    }
+
+    const dadosFormatados = dados.map((p) => ({
+      'Nº Fogo': p.numero_fogo || '-',
+      Marca: p.marca || '-',
+      Modelo: p.modelo || '-',
+      Medida: p.medida || '-',
+      'Tipo Vida': p.tipo_vida || 'NOVO',
+      Status: p.status || 'ESTOQUE',
+      Veículo: p.veiculo_placa || '-',
+      Posição: p.posicao || '-',
+      'Sulco Inicial (mm)': Number(p.sulco_inicial || 0),
+      'Sulco Atual (mm)': Number(p.sulco_atual || 0),
+      'Data Aquisição': p.data_aquisicao
+        ? new Date(p.data_aquisicao).toLocaleDateString('pt-BR')
+        : '-',
+      'Custo (R$)': Number(p.custo_aquisicao || 0),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
+    worksheet['!cols'] = [
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Pneus');
+
+    XLSX.writeFile(workbook, `Relatorio_Pneus_${new Date().getTime()}.xlsx`);
+  } catch (err) {
+    console.error('Erro ao exportar Excel de pneus:', err);
+    alert(`Erro ao exportar Excel: ${err.message}`);
+  }
+};
+
+export const exportarPneusPDF = (dados) => {
+  try {
+    if (!dados || dados.length === 0) {
+      alert('Nenhum pneu disponível para exportar.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    doc.setFontSize(16);
+    doc.text('Relatório Completo do Controle de Pneus', 14, 15);
+
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+    doc.text(`Gerado em: ${dataEmissao}`, 14, 21);
+
+    const colunas = [
+      { header: 'Nº Fogo', dataKey: 'fogo' },
+      { header: 'Marca/Modelo', dataKey: 'marcaModelo' },
+      { header: 'Medida', dataKey: 'medida' },
+      { header: 'Vida', dataKey: 'vida' },
+      { header: 'Status', dataKey: 'status' },
+      { header: 'Veículo/Posição', dataKey: 'veiculo' },
+      { header: 'Sulco Inicial', dataKey: 'sulcoIni' },
+      { header: 'Sulco Atual', dataKey: 'sulcoAtual' },
+    ];
+
+    const linhas = dados.map((p) => ({
+      fogo: p.numero_fogo || '-',
+      marcaModelo: `${p.marca} ${p.modelo}`,
+      medida: p.medida || '-',
+      vida: p.tipo_vida || 'NOVO',
+      status: p.status || 'ESTOQUE',
+      veiculo: p.veiculo_placa
+        ? `${p.veiculo_placa} (${p.posicao || '-'})`
+        : 'Estoque',
+      sulcoIni: `${p.sulco_inicial || 0} mm`,
+      sulcoAtual: `${p.sulco_atual || 0} mm`,
+    }));
+
+    autoTable(doc, {
+      columns: colunas,
+      body: linhas,
+      startY: 26,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      columnStyles: {
+        fogo: { fontStyle: 'bold', halign: 'center' },
+        status: { halign: 'center' },
+        sulcoIni: { halign: 'right' },
+        sulcoAtual: { halign: 'right', fontStyle: 'bold' },
+      },
+    });
+
+    doc.save(`Relatorio_Pneus_${new Date().getTime()}.pdf`);
+  } catch (err) {
+    console.error('Erro ao gerar PDF de pneus:', err);
+    alert(`Erro ao gerar PDF: ${err.message}`);
+  }
+};

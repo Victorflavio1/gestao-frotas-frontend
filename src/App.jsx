@@ -11,6 +11,8 @@ import Layout from './components/Layout';
 import Checklists from './pages/Checklists';
 import Manutencoes from './pages/Manutencoes';
 import Multas from './pages/Multas';
+import Pneus from './pages/Pneus';
+import Documentos from './pages/Documentos';
 
 export default function App() {
   return (
@@ -82,11 +84,33 @@ export default function App() {
         />
 
         <Route
+          path="/pneus"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Pneus />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/multas"
           element={
             <ProtectedRoute>
               <Layout>
                 <Multas />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/documentos"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Documentos />
               </Layout>
             </ProtectedRoute>
           }

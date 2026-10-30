@@ -13,48 +13,51 @@ import {
   Search,
   Disc,
   X,
-  Eye,
   FileSpreadsheet,
-  FileText,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
+  FileCode,
 } from 'lucide-react';
-import { exportarPneusPDF, exportarPneusExcel } from '../utils/exportUtils';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Pneus() {
   const [pneus, setPneus] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
-  const [busca, setBusca] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [selectedPneu, setSelectedPneu] = useState(null);
+
+  const [filtroBusca, setFiltroBusca] = useState('');
+  const [filtroMarca, setFiltroMarca] = useState('');
+  const [filtroMedida, setFiltroMedida] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
 
   // Campos do Formulário
-  const [numeroFogo, setNumeroFogo] = useState('');
-  const [marca, setMarca] = useState('');
-  const [modelo, setModelo] = useState('');
-  const [medida, setMedida] = useState('');
-  const [tipoVida, setTipoVida] = useState('NOVO');
-  const [status, setStatus] = useState('ESTOQUE');
+  const [identificadorPreview, setIdentificadorPreview] = useState('');
   const [veiculoId, setVeiculoId] = useState('');
-  const [posicao, setPosicao] = useState('');
-  const [sulcoInicial, setSulcoInicial] = useState('16.0');
-  const [sulcoAtual, setSulcoAtual] = useState('16.0');
-  const [dataAquisicao, setDataAquisicao] = useState('');
-  const [custoAquisicao, setCustoAquisicao] = useState('');
+  const [marca, setMarca] = useState('');
+  const [medida, setMedida] = useState('');
+  const [estadoGeral, setEstadoGeral] = useState('Novo');
+  const [status, setStatus] = useState('Estoque');
+  const [valorAquisicao, setValorAquisicao] = useState('');
+  const [kmInstalacao, setKmInstalacao] = useState('');
+  const [dataCadastro, setDataCadastro] = useState('');
 
   const carregarDados = async () => {
     try {
-      const [dataPneus, dataVeic] = await Promise.all([
-        getPneus().catch(() => []),
-        getVeiculos().catch(() => []),
-      ]);
+      const dataPneus = await getPneus().catch(() => []);
       setPneus(dataPneus || []);
-      setVeiculos(dataVeic || []);
+
+      const todosVeiculos = await getVeiculos().catch(() => []);
+      const veiculosFiltrados = todosVeiculos.filter((v) => {
+        const st = (v.status || '').toLowerCase().trim();
+        return (
+          st.includes('ativ') || st.includes('uso') || st.includes('manut')
+        );
+      });
+      setVeiculos(veiculosFiltrados);
     } catch (err) {
-      console.error('Erro ao carregar pneus:', err);
+      console.error('Erro ao carregar dados:', err);
     }
   };
 
@@ -62,56 +65,55 @@ export default function Pneus() {
     carregarDados();
   }, []);
 
+  const gerarProximoIdentificador = (listaPneus) => {
+    const proximoNum = listaPneus.length + 1;
+    return `PNEU-${String(proximoNum).padStart(4, '0')}`;
+  };
+
   const handleOpenModalNovo = () => {
     setEditingId(null);
-    setNumeroFogo('');
-    setMarca('');
-    setModelo('');
-    setMedida('');
-    setTipoVida('NOVO');
-    setStatus('ESTOQUE');
+    setIdentificadorPreview(gerarProximoIdentificador(pneus));
     setVeiculoId('');
-    setPosicao('');
-    setSulcoInicial('16.0');
-    setSulcoAtual('16.0');
-    setDataAquisicao(new Date().toISOString().split('T')[0]);
-    setCustoAquisicao('');
+    setMarca('');
+    setMedida('');
+    setEstadoGeral('Novo');
+    setStatus('Estoque');
+    setValorAquisicao('');
+    setKmInstalacao('0');
+    setDataCadastro(new Date().toISOString().split('T')[0]); // Data atual pré-preenchida
     setShowModal(true);
   };
 
   const handleOpenModalEditar = (p) => {
     setEditingId(p.id);
-    setNumeroFogo(p.numero_fogo || '');
-    setMarca(p.marca || '');
-    setModelo(p.modelo || '');
-    setMedida(p.medida || '');
-    setTipoVida(p.tipo_vida || 'NOVO');
-    setStatus(p.status || 'ESTOQUE');
+    setIdentificadorPreview(p.identificador);
     setVeiculoId(p.veiculo_id || '');
-    setPosicao(p.posicao || '');
-    setSulcoInicial(p.sulco_inicial || '16.0');
-    setSulcoAtual(p.sulco_atual || '16.0');
-    setDataAquisicao(p.data_aquisicao ? p.data_aquisicao.split('T')[0] : '');
-    setCustoAquisicao(p.custo_aquisicao || '');
+    setMarca(p.marca || '');
+    setMedida(p.medida || '');
+    setEstadoGeral(p.estado_geral || 'Novo');
+    setStatus(p.status || 'Estoque'); // Carrega o status atual gravado no banco
+    setValorAquisicao(p.valor_aquisicao || '');
+    setKmInstalacao(p.km_instalacao || '');
+    setDataCadastro(
+      p.data_cadastro
+        ? p.data_cadastro.split('T')[0]
+        : new Date().toISOString().split('T')[0],
+    );
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = {
-      numero_fogo: numeroFogo,
+      identificador: identificadorPreview,
+      veiculo_id: veiculoId || null,
       marca,
-      modelo,
       medida,
-      tipo_vida: tipoVida,
-      status,
-      veiculo_id:
-        status === 'EM_USO' ? (veiculoId ? Number(veiculoId) : null) : null,
-      posicao: status === 'EM_USO' ? posicao : null,
-      sulco_inicial: Number(sulcoInicial) || 16.0,
-      sulco_atual: Number(sulcoAtual) || 16.0,
-      data_aquisicao: dataAquisicao || null,
-      custo_aquisicao: Number(custoAquisicao) || 0.0,
+      estado_geral: estadoGeral,
+      status: status, // Utiliza diretamente o status escolhido no formulário
+      valor_aquisicao: Number(valorAquisicao) || 0,
+      km_instalacao: Number(kmInstalacao) || 0,
+      data_cadastro: dataCadastro,
     };
 
     try {
@@ -120,7 +122,7 @@ export default function Pneus() {
         alert('Pneu atualizado com sucesso!');
       } else {
         await createPneu(payload);
-        alert('Pneu cadastrado com sucesso!');
+        alert(`Pneu ${identificadorPreview} cadastrado com sucesso!`);
       }
       setShowModal(false);
       carregarDados();
@@ -142,108 +144,230 @@ export default function Pneus() {
 
   const pneusFiltrados = useMemo(() => {
     return pneus.filter((p) => {
-      const termo = busca.toLowerCase();
-      const fogo = p.numero_fogo || '';
-      const marcaMod = `${p.marca} ${p.modelo}`.toLowerCase();
-      const placa = p.veiculo_placa || '';
+      const termo = filtroBusca.toLowerCase();
+      const ident = p.identificador ? p.identificador.toLowerCase() : '';
+      const placa = p.veiculo_placa ? p.veiculo_placa.toLowerCase() : '';
+
+      const matchBusca = ident.includes(termo) || placa.includes(termo);
+      const matchMarca = filtroMarca ? p.marca === filtroMarca : true;
+      const matchMedida = filtroMedida ? p.medida === filtroMedida : true;
+      const matchStatus = filtroStatus ? p.status === filtroStatus : true;
+      const matchEstado = filtroEstado ? p.estado_geral === filtroEstado : true;
+
       return (
-        fogo.toLowerCase().includes(termo) ||
-        marcaMod.includes(termo) ||
-        placa.toLowerCase().includes(termo)
+        matchBusca && matchMarca && matchMedida && matchStatus && matchEstado
       );
     });
-  }, [pneus, busca]);
+  }, [
+    pneus,
+    filtroBusca,
+    filtroMarca,
+    filtroMedida,
+    filtroStatus,
+    filtroEstado,
+  ]);
 
-  // Função utilitária para renderizar o alerta do sulco
-  const getSulcoBadge = (sulco) => {
-    const val = Number(sulco || 0);
-    if (val <= 3.0) {
-      return (
-        <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-          {val} mm (Crítico)
-        </span>
-      );
-    }
-    if (val <= 5.0) {
-      return (
-        <span style={{ color: '#eab308', fontWeight: 'bold' }}>
-          {val} mm (Atenção)
-        </span>
-      );
-    }
-    return (
-      <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{val} mm</span>
-    );
+  const exportarExcel = () => {
+    const dados = pneusFiltrados.map((p) => ({
+      Identificador: p.identificador,
+      Marca: p.marca,
+      Medida: p.medida,
+      'Tipo de Vida': p.estado_geral, // Incluído tipo_vida na planilha
+      Status: p.status,
+      'Veículo Vinculado': p.veiculo_placa
+        ? `${p.veiculo_placa} (${p.veiculo_modelo})`
+        : 'Em Estoque',
+      'Km Instalação': p.km_instalacao,
+      'Data Cadastro': p.data_cadastro ? p.data_cadastro.split('T')[0] : '',
+      'Valor (R$)': Number(p.valor_aquisicao || 0),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dados);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Pneus');
+    XLSX.writeFile(workbook, 'relatorio_pneus_frota.xlsx');
+  };
+
+  const exportarPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Relatório de Controle de Pneus da Frota', 14, 20);
+
+    // Colunas separando Marca e Medida, e incluindo Tipo de Vida
+    const colunas = [
+      'Identificador',
+      'Marca',
+      'Medida',
+      'Tipo Vida',
+      'Status',
+      'Veículo',
+      'Km Inst.',
+      'Data',
+    ];
+    const linhas = pneusFiltrados.map((p) => [
+      p.identificador,
+      p.marca, // Marca isolada
+      p.medida, // Medida isolada
+      p.estado_geral, // Tipo de vida
+      p.status,
+      p.veiculo_placa ? `${p.veiculo_placa}` : 'Estoque',
+      p.km_instalacao,
+      p.data_cadastro ? p.data_cadastro.split('T')[0] : '',
+    ]);
+
+    autoTable(doc, {
+      head: [colunas],
+      body: linhas,
+      startY: 28,
+      theme: 'grid',
+      styles: { fontSize: 7.5 }, // Ajustado para caber todas as colunas com folga
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+
+    doc.save('relatorio_pneus_frota.pdf');
   };
 
   return (
     <>
-      <div className="page-header">
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
         <h1 className="page-title" style={{ margin: 0 }}>
           Controle e Gestão de Pneus
         </h1>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
-            className="btn-secondary btn-export-excel"
-            onClick={() => exportarPneusExcel(pneusFiltrados)}
-            title="Exportar para Excel"
+            className="btn-secondary"
+            onClick={exportarExcel}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(34, 197, 94, 0.15)',
+              color: '#22c55e',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+            }}
           >
-            <FileSpreadsheet size={18} /> Excel
+            <FileSpreadsheet size={16} /> Excel
           </button>
-
           <button
-            className="btn-secondary btn-export-pdf"
-            onClick={() => exportarPneusPDF(pneusFiltrados)}
-            title="Exportar para PDF"
+            className="btn-secondary"
+            onClick={exportarPDF}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+            }}
           >
-            <FileText size={18} /> PDF
+            <FileCode size={16} /> PDF
           </button>
-
           <button className="btn-primary" onClick={handleOpenModalNovo}>
             <Plus size={18} /> Novo Pneu
           </button>
         </div>
       </div>
 
-      {/* BARRA DE BUSCA */}
       <div
         style={{
-          marginBottom: '16px',
-          position: 'relative',
-          maxWidth: '360px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '12px',
+          margin: '16px 0',
         }}
       >
-        <Search
-          size={18}
-          style={{
-            position: 'absolute',
-            left: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#94a3b8',
-          }}
-        />
-        <input
+        <div style={{ position: 'relative' }}>
+          <Search
+            size={16}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#94a3b8',
+            }}
+          />
+          <input
+            className="input-control"
+            style={{ paddingLeft: '36px' }}
+            placeholder="Buscar Identificador ou Placa..."
+            value={filtroBusca}
+            onChange={(e) => setFiltroBusca(e.target.value)}
+          />
+        </div>
+
+        <select
           className="input-control"
-          style={{ paddingLeft: '38px' }}
-          placeholder="Buscar por Nº Fogo, Marca, Modelo ou Placa..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
+          value={filtroMarca}
+          onChange={(e) => setFiltroMarca(e.target.value)}
+        >
+          <option value="">Todas as Marcas</option>
+          {[...new Set(pneus.map((p) => p.marca))].map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="input-control"
+          value={filtroMedida}
+          onChange={(e) => setFiltroMedida(e.target.value)}
+        >
+          <option value="">Todas as Medidas</option>
+          {[...new Set(pneus.map((p) => p.medida))].map((med) => (
+            <option key={med} value={med}>
+              {med}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="input-control"
+          value={filtroStatus}
+          onChange={(e) => setFiltroStatus(e.target.value)}
+        >
+          <option value="">Todos os Status</option>
+          <option value="Estoque">Estoque</option>
+          <option value="Em Uso">Em Uso</option>
+          <option value="Reformando">Reformando</option>
+          <option value="Descartado">Descartado</option>
+        </select>
+
+        <select
+          className="input-control"
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+        >
+          <option value="">Todos os Estados</option>
+          <option value="Novo">Novo</option>
+          <option value="Meia-Vida">Meia-Vida</option>
+          <option value="Recapado">Recapado</option>
+          <option value="Desgastado">Desgastado</option>
+        </select>
       </div>
 
-      {/* TABELA */}
       <div className="table-container">
         <table className="custom-table">
           <thead>
             <tr>
-              <th>Nº Fogo</th>
-              <th>Marca / Modelo</th>
-              <th>Medida</th>
-              <th>Tipo Vida</th>
+              <th>Identificador</th>
+              <th>Marca / Medida</th>
+              <th>Estado Geral</th>
               <th>Status</th>
-              <th>Veículo / Posição</th>
-              <th>Sulco Atual</th>
+              <th>Veículo Vinculado</th>
+              <th>Km Inst.</th>
+              <th>Data Cadastro</th>
+              <th>Valor (R$)</th>
               <th style={{ textAlign: 'center' }}>Ações</th>
             </tr>
           </thead>
@@ -251,109 +375,68 @@ export default function Pneus() {
             {pneusFiltrados.length > 0 ? (
               pneusFiltrados.map((p) => (
                 <tr key={p.id}>
-                  <td
-                    data-label="Nº Fogo"
-                    style={{ fontWeight: 'bold', color: '#38bdf8' }}
-                  >
-                    {p.numero_fogo}
+                  <td style={{ fontWeight: 'bold', color: '#38bdf8' }}>
+                    {p.identificador}
                   </td>
-                  <td data-label="Marca/Modelo">
-                    {p.marca} {p.modelo}
+                  <td>
+                    {p.marca}{' '}
+                    <span style={{ color: '#94a3b8' }}>({p.medida})</span>
                   </td>
-                  <td data-label="Medida">{p.medida}</td>
-                  <td data-label="Tipo Vida">
+                  <td>{p.estado_geral}</td>
+                  <td>
                     <span
                       className="status-badge"
                       style={{
-                        backgroundColor: 'rgba(148, 163, 184, 0.1)',
-                        color: '#cbd5e1',
+                        backgroundColor:
+                          p.status === 'Em Uso'
+                            ? 'rgba(34, 197, 94, 0.2)'
+                            : 'rgba(234, 179, 8, 0.2)',
+                        color: p.status === 'Em Uso' ? '#22c55e' : '#eab308',
                       }}
                     >
-                      {p.tipo_vida}
+                      {p.status}
                     </span>
                   </td>
-                  <td data-label="Status">
-                    {p.status === 'ESTOQUE' && (
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                          color: '#3b82f6',
-                        }}
-                      >
-                        ESTOQUE
-                      </span>
-                    )}
-                    {p.status === 'EM_USO' && (
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                          color: '#22c55e',
-                        }}
-                      >
-                        EM USO
-                      </span>
-                    )}
-                    {p.status === 'REPARO' && (
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: 'rgba(234, 179, 8, 0.2)',
-                          color: '#eab308',
-                        }}
-                      >
-                        REPARO
-                      </span>
-                    )}
-                    {p.status === 'DESCARTADO' && (
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                          color: '#ef4444',
-                        }}
-                      >
-                        DESCARTADO
-                      </span>
-                    )}
-                  </td>
-                  <td data-label="Veículo/Posição">
-                    {p.status === 'EM_USO' && p.veiculo_placa ? (
-                      <span>
-                        <strong style={{ color: '#60a5fa' }}>
-                          {p.veiculo_placa}
-                        </strong>{' '}
-                        {p.posicao ? `(${p.posicao})` : ''}
+                  <td>
+                    {p.veiculo_placa ? (
+                      <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>
+                        {p.veiculo_placa} ({p.veiculo_modelo})
                       </span>
                     ) : (
-                      <span style={{ color: '#94a3b8' }}>-</span>
+                      <span style={{ color: '#94a3b8' }}>Em Estoque</span>
                     )}
                   </td>
-                  <td data-label="Sulco">{getSulcoBadge(p.sulco_atual)}</td>
-                  <td data-label="Ações" style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          setSelectedPneu(p);
-                          setShowDetalhesModal(true);
-                        }}
-                        className="btn-icon-primary"
-                        title="Ver Detalhes"
-                      >
-                        <Eye size={18} />
-                      </button>
+                  <td>{p.km_instalacao} km</td>
+                  <td>
+                    {p.data_cadastro
+                      ? new Date(p.data_cadastro).toLocaleDateString('pt-BR')
+                      : '-'}
+                  </td>
+                  <td>
+                    {Number(p.valor_aquisicao || 0).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        gap: '8px',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <button
                         onClick={() => handleOpenModalEditar(p)}
                         className="btn-icon-secondary"
-                        title="Editar Pneu"
+                        title="Editar"
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => handleDelete(p.id)}
                         className="btn-icon-danger"
-                        title="Excluir Pneu"
+                        title="Excluir"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -364,8 +447,12 @@ export default function Pneus() {
             ) : (
               <tr>
                 <td
-                  colSpan="8"
-                  style={{ textAlign: 'center', padding: '24px' }}
+                  colSpan="9"
+                  style={{
+                    textAlign: 'center',
+                    padding: '24px',
+                    color: '#94a3b8',
+                  }}
                 >
                   Nenhum pneu registrado.
                 </td>
@@ -375,17 +462,16 @@ export default function Pneus() {
         </table>
       </div>
 
-      {/* MODAL DE CADASTRO / EDIÇÃO */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div
             className="modal-content"
-            style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ maxWidth: '520px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h2>
-                <Disc size={22} style={{ marginRight: '8px' }} />
+                <Disc size={20} style={{ marginRight: '8px' }} />
                 {editingId ? 'Editar Pneu' : 'Novo Pneu'}
               </h2>
               <button className="btn-close" onClick={() => setShowModal(false)}>
@@ -395,8 +481,50 @@ export default function Pneus() {
 
             <form
               onSubmit={handleSubmit}
-              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
             >
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.8rem',
+                    color: '#38bdf8',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Identificador (PNEU-XXXX)
+                </label>
+                <input
+                  type="text"
+                  className="input-control"
+                  value={identificadorPreview}
+                  disabled
+                  style={{
+                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                    color: '#38bdf8',
+                    fontWeight: 'bold',
+                    cursor: 'not-allowed',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  Veículo Vinculado
+                </label>
+                <select
+                  className="input-control"
+                  value={veiculoId}
+                  onChange={(e) => setVeiculoId(e.target.value)}
+                >
+                  <option value="">Nenhum (Manter em Estoque)</option>
+                  {veiculos.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.placa} - {v.modelo} ({v.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div
                 style={{
                   display: 'grid',
@@ -406,63 +534,17 @@ export default function Pneus() {
               >
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Nº de Fogo *
-                  </label>
-                  <input
-                    type="text"
-                    className="input-control"
-                    placeholder="Ex: PN-001"
-                    value={numeroFogo}
-                    onChange={(e) => setNumeroFogo(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Status *
-                  </label>
-                  <select
-                    className="input-control"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    required
-                  >
-                    <option value="ESTOQUE">Estoque</option>
-                    <option value="EM_USO">Em Uso (Instalado)</option>
-                    <option value="REPARO">Em Reparo / Recapagem</option>
-                    <option value="DESCARTADO">Descartado</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
                     Marca *
                   </label>
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="Ex: Michelin, Bridgestone"
+                    placeholder="Ex: Michelin"
                     value={marca}
                     onChange={(e) => setMarca(e.target.value)}
                     required
                   />
                 </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Modelo *
-                  </label>
-                  <input
-                    type="text"
-                    className="input-control"
-                    placeholder="Ex: X Multi Z"
-                    value={modelo}
-                    onChange={(e) => setModelo(e.target.value)}
-                    required
-                  />
-                </div>
-
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
                     Medida *
@@ -476,113 +558,97 @@ export default function Pneus() {
                     required
                   />
                 </div>
+              </div>
 
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
+                }}
+              >
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Tipo de Vida
+                    Status *
                   </label>
                   <select
                     className="input-control"
-                    value={tipoVida}
-                    onChange={(e) => setTipoVida(e.target.value)}
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    required
                   >
-                    <option value="NOVO">Novo</option>
-                    <option value="RECAPADO_1">1ª Recapagem</option>
-                    <option value="RECAPADO_2">2ª Recapagem</option>
-                    <option value="RECAPADO_3">3ª Recapagem</option>
+                    <option value="Estoque">Estoque</option>
+                    <option value="Em Uso">Em Uso</option>
+                    <option value="Reformando">Reformando</option>
+                    <option value="Descartado">Descartado</option>
                   </select>
                 </div>
-
-                {status === 'EM_USO' && (
-                  <>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                        Veículo Instalado *
-                      </label>
-                      <select
-                        className="input-control"
-                        value={veiculoId}
-                        onChange={(e) => setVeiculoId(e.target.value)}
-                        required={status === 'EM_USO'}
-                      >
-                        <option value="">Selecione o veículo...</option>
-                        {veiculos.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.placa} - {v.modelo}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                        Posição da Rodagem
-                      </label>
-                      <input
-                        type="text"
-                        className="input-control"
-                        placeholder="Ex: Dianteiro Direito, Eixo 1"
-                        value={posicao}
-                        onChange={(e) => setPosicao(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Sulco Inicial (mm)
+                    Estado Geral *
+                  </label>
+                  <select
+                    className="input-control"
+                    value={estadoGeral}
+                    onChange={(e) => setEstadoGeral(e.target.value)}
+                    required
+                  >
+                    <option value="Novo">Novo</option>
+                    <option value="Meia-Vida">Meia-Vida</option>
+                    <option value="Recapado">Recapado</option>
+                    <option value="Desgastado">Desgastado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
+                }}
+              >
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                    Km de Instalação
                   </label>
                   <input
                     type="number"
-                    step="0.1"
                     className="input-control"
-                    value={sulcoInicial}
-                    onChange={(e) => setSulcoInicial(e.target.value)}
+                    placeholder="0"
+                    value={kmInstalacao}
+                    onChange={(e) => setKmInstalacao(e.target.value)}
                   />
                 </div>
-
                 <div>
                   <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Sulco Atual (mm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input-control"
-                    value={sulcoAtual}
-                    onChange={(e) => setSulcoAtual(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Data de Aquisição
-                  </label>
-                  <input
-                    type="date"
-                    className="input-control"
-                    value={dataAquisicao}
-                    onChange={(e) => setDataAquisicao(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Custo de Aquisição (R$)
+                    Valor de Aquisição (R$)
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     className="input-control"
                     placeholder="0.00"
-                    value={custoAquisicao}
-                    onChange={(e) => setCustoAquisicao(e.target.value)}
+                    value={valorAquisicao}
+                    onChange={(e) => setValorAquisicao(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="modal-actions">
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  Data de Cadastro
+                </label>
+                <input
+                  type="date"
+                  className="input-control"
+                  value={dataCadastro}
+                  onChange={(e) => setDataCadastro(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: '10px' }}>
                 <button
                   type="button"
                   className="btn-secondary"
@@ -595,88 +661,6 @@ export default function Pneus() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE DETALHES */}
-      {selectedPneu && showDetalhesModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowDetalhesModal(false)}
-        >
-          <div
-            className="modal-content"
-            style={{ maxWidth: '600px' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2>Ficha do Pneu Nº {selectedPneu.numero_fogo}</h2>
-              <button
-                className="btn-close"
-                onClick={() => setShowDetalhesModal(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                fontSize: '0.9rem',
-              }}
-            >
-              <div>
-                <strong>Marca / Modelo:</strong> {selectedPneu.marca} -{' '}
-                {selectedPneu.modelo}
-              </div>
-              <div>
-                <strong>Medida:</strong> {selectedPneu.medida}
-              </div>
-              <div>
-                <strong>Tipo de Vida:</strong> {selectedPneu.tipo_vida}
-              </div>
-              <div>
-                <strong>Status:</strong> {selectedPneu.status}
-              </div>
-              <div>
-                <strong>Veículo Atual:</strong>{' '}
-                {selectedPneu.veiculo_placa
-                  ? `${selectedPneu.veiculo_placa} (${selectedPneu.posicao || 'Sem posição'})`
-                  : 'Nenhum / Em estoque'}
-              </div>
-              <div>
-                <strong>Sulco Inicial:</strong> {selectedPneu.sulco_inicial} mm
-              </div>
-              <div>
-                <strong>Sulco Atual:</strong>{' '}
-                {getSulcoBadge(selectedPneu.sulco_atual)}
-              </div>
-              <div>
-                <strong>Data de Aquisição:</strong>{' '}
-                {selectedPneu.data_aquisicao
-                  ? new Date(selectedPneu.data_aquisicao).toLocaleDateString(
-                      'pt-BR',
-                    )
-                  : '-'}
-              </div>
-              <div>
-                <strong>Custo:</strong>{' '}
-                {Number(selectedPneu.custo_aquisicao || 0).toLocaleString(
-                  'pt-BR',
-                  { style: 'currency', currency: 'BRL' },
-                )}
-              </div>
-            </div>
-            <div className="modal-actions" style={{ marginTop: '20px' }}>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowDetalhesModal(false)}
-              >
-                Fechar
-              </button>
-            </div>
           </div>
         </div>
       )}
